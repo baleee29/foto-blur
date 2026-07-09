@@ -3,7 +3,6 @@
 FotoBlur adalah efek webcam real-time seperti tren TikTok: kamera tampil normal, lalu perlahan menjadi blur ketika pose tangan angka 2 / peace sign terdeteksi. Saat pose hilang, blur akan kembali normal secara perlahan.
 
 Jika love sign dua tangan terdeteksi, foto `Lovesign.jpeg` akan muncul sebagai animasi hujan foto berbentuk love di tampilan kamera.
-Jika love sign dua tangan bertahan selama 3 detik, animasi hujan foto akan berhenti dan lagu `dropdead.mp3` akan diputar.
 
 Project ini punya dua versi:
 
@@ -18,7 +17,6 @@ File utama website:
 - `styles.css`
 - `script.js`
 - `assets/Lovesign.jpeg`
-- `assets/dropdead.mp3`
 - `hand_landmarker.task`
 - `vercel.json`
 - `.vercelignore`

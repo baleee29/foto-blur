@@ -1,9 +1,7 @@
 import cv2
 import mediapipe as mp
 import numpy as np
-import os
 import random
-import time
 import urllib.request
 from pathlib import Path
 
@@ -13,14 +11,12 @@ BLUR_STEP_UP = 3
 BLUR_STEP_DOWN = 2
 STABLE_POSE_FRAMES = 3
 STABLE_LOVE_FRAMES = 3
-LOVE_HOLD_TO_AUDIO_SECONDS = 3.0
 LOVE_RAIN_BATCH_SIZE = 4
 LOVE_RAIN_INTERVAL_FRAMES = 4
 MAX_LOVE_PHOTOS = 70
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 MODEL_PATH = Path(__file__).resolve().parent.parent / "hand_landmarker.task"
 LOVE_IMAGE_PATH = Path(__file__).with_name("Lovesign.jpeg")
-AUDIO_PATH = Path(__file__).resolve().parent.parent / "assets" / "dropdead.mp3"
 
 
 def get_landmarks(hand_landmarks):
@@ -227,18 +223,6 @@ def draw_love_rain(frame, particles):
     particles[:] = active_particles
 
 
-def play_dropdead_audio():
-    """Open the MP3 with the default Windows audio player."""
-    if not AUDIO_PATH.exists():
-        print(f"Warning: File audio tidak ditemukan di {AUDIO_PATH}")
-        return
-
-    if hasattr(os, "startfile"):
-        os.startfile(str(AUDIO_PATH))
-    else:
-        print("Warning: Pemutar audio otomatis hanya didukung langsung di Windows.")
-
-
 def download_model_if_needed():
     """Download the MediaPipe hand landmarker model once."""
     if MODEL_PATH.exists():
@@ -309,8 +293,6 @@ def main():
     blur_strength = 0
     pose_frame_count = 0
     love_frame_count = 0
-    love_hold_started_at = None
-    dropdead_triggered = False
     frame_index = 0
     love_particles = []
     love_image = cv2.imread(str(LOVE_IMAGE_PATH))
@@ -359,29 +341,12 @@ def main():
                     pose_frame_count = 0
 
                 if raw_love_detected:
-                    if love_hold_started_at is None:
-                        love_hold_started_at = time.perf_counter()
                     love_frame_count += 1
                 else:
                     love_frame_count = 0
-                    love_hold_started_at = None
-                    dropdead_triggered = False
 
                 pose_detected = pose_frame_count >= STABLE_POSE_FRAMES
                 love_detected = love_frame_count >= STABLE_LOVE_FRAMES
-                love_hold_duration = (
-                    time.perf_counter() - love_hold_started_at
-                    if love_hold_started_at is not None
-                    else 0
-                )
-                dropdead_active = dropdead_triggered or (
-                    love_detected and love_hold_duration >= LOVE_HOLD_TO_AUDIO_SECONDS
-                )
-
-                if dropdead_active and not dropdead_triggered:
-                    love_particles.clear()
-                    play_dropdead_audio()
-                    dropdead_triggered = True
 
                 if pose_detected:
                     blur_strength = min(MAX_BLUR, blur_strength + BLUR_STEP_UP)
@@ -391,7 +356,7 @@ def main():
                 display_frame = apply_smooth_blur(frame, blur_strength)
                 frame_height, frame_width = display_frame.shape[:2]
 
-                if love_detected and not dropdead_active and frame_index % LOVE_RAIN_INTERVAL_FRAMES == 0:
+                if love_detected and frame_index % LOVE_RAIN_INTERVAL_FRAMES == 0:
                     spawn_love_photos(love_particles, love_image, frame_width, frame_height)
 
                 # Draw landmarks after blur so the hand guide remains visible.

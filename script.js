@@ -5,13 +5,11 @@ const MEDIAPIPE_BASE_URLS = [
 
 const MODEL_PATH = "./hand_landmarker.task";
 const LOVE_IMAGE_PATH = "./assets/Lovesign.jpeg";
-const DROP_DEAD_AUDIO_PATH = "./assets/dropdead.mp3";
 const MAX_BLUR = 45;
 const BLUR_STEP_UP = 3;
 const BLUR_STEP_DOWN = 2;
 const STABLE_POSE_FRAMES = 3;
 const STABLE_LOVE_FRAMES = 3;
-const LOVE_HOLD_TO_AUDIO_MS = 3000;
 const LOVE_RAIN_BATCH_SIZE = 5;
 const LOVE_RAIN_INTERVAL_MS = 120;
 const MAX_LOVE_PHOTOS = 90;
@@ -44,7 +42,6 @@ const elements = {
   video: document.querySelector("#inputVideo"),
   canvas: document.querySelector("#outputCanvas"),
   loveRain: document.querySelector("#loveRain"),
-  dropDeadAudio: document.querySelector("#dropDeadAudio"),
   emptyState: document.querySelector("#emptyState"),
   startCameraButton: document.querySelector("#startCameraButton"),
   toggleCameraButton: document.querySelector("#toggleCameraButton"),
@@ -82,15 +79,10 @@ const state = {
   blurStrength: 0,
   poseFrameCount: 0,
   loveFrameCount: 0,
-  loveHoldStartedAt: 0,
   lastLoveRainAt: 0,
-  dropDeadTriggered: false,
   lastResults: null,
   useNativeCanvasBlur: "filter" in ctx && !shouldUseMobileBlurFallback(),
 };
-
-elements.dropDeadAudio.src = DROP_DEAD_AUDIO_PATH;
-elements.dropDeadAudio.volume = 0.9;
 
 function setStatus(text, tone = "idle") {
   elements.appStatus.textContent = text;
@@ -189,25 +181,16 @@ function updatePoseState(handLandmarks) {
 
 function updateLoveState(handLandmarks) {
   const rawLoveDetected = isTwoHandLoveSign(handLandmarks);
-  const now = performance.now();
 
   if (rawLoveDetected) {
-    if (!state.loveHoldStartedAt) {
-      state.loveHoldStartedAt = now;
-    }
     state.loveFrameCount += 1;
   } else {
     state.loveFrameCount = 0;
-    state.loveHoldStartedAt = 0;
-    state.dropDeadTriggered = false;
   }
 
   const loveDetected = state.loveFrameCount >= STABLE_LOVE_FRAMES;
 
-  return {
-    loveDetected,
-    holdDuration: state.loveHoldStartedAt ? now - state.loveHoldStartedAt : 0,
-  };
+  return loveDetected;
 }
 
 function randomBetween(min, max) {
@@ -258,43 +241,6 @@ function updateLoveRain(loveDetected) {
 
 function clearLoveRain() {
   elements.loveRain.replaceChildren();
-}
-
-async function primeDropDeadAudio() {
-  try {
-    elements.dropDeadAudio.muted = true;
-    await elements.dropDeadAudio.play();
-    elements.dropDeadAudio.pause();
-    elements.dropDeadAudio.currentTime = 0;
-  } catch (error) {
-    elements.dropDeadAudio.load();
-  } finally {
-    elements.dropDeadAudio.muted = false;
-  }
-}
-
-function playDropDeadAudio() {
-  elements.dropDeadAudio.currentTime = 0;
-  elements.dropDeadAudio.play().catch((error) => {
-    console.warn("Audio playback was blocked by the browser.", error);
-    setStatus("Audio blocked", "error");
-  });
-}
-
-function updateDropDeadAudio(loveDetected, holdDuration) {
-  if (!loveDetected || state.dropDeadTriggered || holdDuration < LOVE_HOLD_TO_AUDIO_MS) {
-    return false;
-  }
-
-  state.dropDeadTriggered = true;
-  clearLoveRain();
-  playDropDeadAudio();
-  return true;
-}
-
-function stopDropDeadAudio() {
-  elements.dropDeadAudio.pause();
-  elements.dropDeadAudio.currentTime = 0;
 }
 
 function resizeCanvasToVideo() {
@@ -408,16 +354,10 @@ function drawVideoFrame(handLandmarks) {
   drawLandmarks(handLandmarks);
 }
 
-function updateDisplay(handLandmarks, loveDetected, dropDeadActive) {
+function updateDisplay(handLandmarks, loveDetected) {
   elements.handCount.textContent = String(handLandmarks.length);
   elements.poseFrames.textContent = String(Math.min(state.poseFrameCount, STABLE_POSE_FRAMES));
-  elements.effectState.textContent = dropDeadActive
-    ? "Music"
-    : loveDetected
-      ? "Love"
-      : state.blurStrength > 0
-        ? "Blur"
-        : "Normal";
+  elements.effectState.textContent = loveDetected ? "Love" : state.blurStrength > 0 ? "Blur" : "Normal";
 }
 
 async function loadMediaPipe() {
@@ -499,11 +439,10 @@ function renderLoop() {
   }
 
   updatePoseState(handLandmarks);
-  const { loveDetected, holdDuration } = updateLoveState(handLandmarks);
-  const dropDeadActive = updateDropDeadAudio(loveDetected, holdDuration) || state.dropDeadTriggered;
-  updateLoveRain(loveDetected && !dropDeadActive);
+  const loveDetected = updateLoveState(handLandmarks);
+  updateLoveRain(loveDetected);
   drawVideoFrame(handLandmarks);
-  updateDisplay(handLandmarks, loveDetected, dropDeadActive);
+  updateDisplay(handLandmarks, loveDetected);
 
   state.rafId = window.requestAnimationFrame(renderLoop);
 }
@@ -511,8 +450,6 @@ function renderLoop() {
 async function startCamera() {
   try {
     setBusy(true);
-    await primeDropDeadAudio();
-
     setStatus("Loading model");
     await setupHandLandmarker();
 
@@ -555,17 +492,14 @@ function stopCamera() {
   state.blurStrength = 0;
   state.poseFrameCount = 0;
   state.loveFrameCount = 0;
-  state.loveHoldStartedAt = 0;
   state.lastLoveRainAt = 0;
-  state.dropDeadTriggered = false;
   ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
   elements.video.srcObject = null;
   clearLoveRain();
-  stopDropDeadAudio();
   elements.emptyState.classList.remove("is-hidden");
   elements.startCameraButton.disabled = false;
   elements.toggleCameraButton.disabled = true;
-  updateDisplay([], false, false);
+  updateDisplay([], false);
   setStatus("Ready");
 }
 
