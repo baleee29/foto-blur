@@ -114,17 +114,49 @@ function landmarkDistance(firstLandmark, secondLandmark) {
   return Math.hypot(deltaX, deltaY);
 }
 
-function isLoveSign(handLandmarks) {
-  const indexUp = isFingerUp(handLandmarks, 8, 6);
-  const middleUp = isFingerUp(handLandmarks, 12, 10);
-  const ringUp = isFingerUp(handLandmarks, 16, 14);
-  const pinkyUp = isFingerUp(handLandmarks, 20, 18);
-  const thumbIndexClose = landmarkDistance(handLandmarks[4], handLandmarks[8]) < 0.085;
+function midpoint(firstLandmark, secondLandmark) {
+  return {
+    x: (firstLandmark.x + secondLandmark.x) / 2,
+    y: (firstLandmark.y + secondLandmark.y) / 2,
+  };
+}
 
-  const fingerHeart = thumbIndexClose && !middleUp && !ringUp && !pinkyUp;
-  const ilySign = indexUp && pinkyUp && !middleUp && !ringUp;
+function getHandScale(handLandmarks) {
+  return Math.max(landmarkDistance(handLandmarks[0], handLandmarks[9]), 0.001);
+}
 
-  return fingerHeart || ilySign;
+function isTwoHandLovePair(firstHand, secondHand) {
+  const indexTipDistance = landmarkDistance(firstHand[8], secondHand[8]);
+  const thumbTipDistance = landmarkDistance(firstHand[4], secondHand[4]);
+  const averageHandScale = (getHandScale(firstHand) + getHandScale(secondHand)) / 2;
+  const closeThreshold = Math.min(0.16, Math.max(0.055, averageHandScale * 1.35));
+  const indexMidpoint = midpoint(firstHand[8], secondHand[8]);
+  const thumbMidpoint = midpoint(firstHand[4], secondHand[4]);
+  const heartHeight = thumbMidpoint.y - indexMidpoint.y;
+  const wristsApart = Math.abs(firstHand[0].x - secondHand[0].x) > 0.05;
+
+  return (
+    wristsApart &&
+    indexTipDistance < closeThreshold &&
+    thumbTipDistance < closeThreshold &&
+    heartHeight > closeThreshold * 0.25
+  );
+}
+
+function isTwoHandLoveSign(handLandmarks) {
+  if (handLandmarks.length < 2) {
+    return false;
+  }
+
+  for (let firstIndex = 0; firstIndex < handLandmarks.length - 1; firstIndex += 1) {
+    for (let secondIndex = firstIndex + 1; secondIndex < handLandmarks.length; secondIndex += 1) {
+      if (isTwoHandLovePair(handLandmarks[firstIndex], handLandmarks[secondIndex])) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function updatePoseState(handLandmarks) {
@@ -148,7 +180,7 @@ function updatePoseState(handLandmarks) {
 }
 
 function updateLoveState(handLandmarks) {
-  const rawLoveDetected = handLandmarks.some(isLoveSign);
+  const rawLoveDetected = isTwoHandLoveSign(handLandmarks);
 
   if (rawLoveDetected) {
     state.loveFrameCount += 1;

@@ -41,27 +41,55 @@ def is_peace_sign(hand_landmarks):
     return index_up and middle_up and not ring_up and not pinky_up
 
 
-def landmark_distance(hand_landmarks, first_id, second_id):
-    landmarks = get_landmarks(hand_landmarks)
-    first = landmarks[first_id]
-    second = landmarks[second_id]
+def point_distance(first, second):
     delta_x = first.x - second.x
     delta_y = first.y - second.y
     return (delta_x ** 2 + delta_y ** 2) ** 0.5
 
 
-def is_love_sign(hand_landmarks):
-    """Detect finger heart or ILY-style love sign."""
-    index_up = is_finger_up(hand_landmarks, 8, 6)
-    middle_up = is_finger_up(hand_landmarks, 12, 10)
-    ring_up = is_finger_up(hand_landmarks, 16, 14)
-    pinky_up = is_finger_up(hand_landmarks, 20, 18)
-    thumb_index_close = landmark_distance(hand_landmarks, 4, 8) < 0.085
+def midpoint(first, second):
+    return ((first.x + second.x) / 2, (first.y + second.y) / 2)
 
-    finger_heart = thumb_index_close and not middle_up and not ring_up and not pinky_up
-    ily_sign = index_up and pinky_up and not middle_up and not ring_up
 
-    return finger_heart or ily_sign
+def get_hand_scale(hand_landmarks):
+    landmarks = get_landmarks(hand_landmarks)
+    return max(point_distance(landmarks[0], landmarks[9]), 0.001)
+
+
+def is_two_hand_love_pair(first_hand, second_hand):
+    first_landmarks = get_landmarks(first_hand)
+    second_landmarks = get_landmarks(second_hand)
+    index_tip_distance = point_distance(first_landmarks[8], second_landmarks[8])
+    thumb_tip_distance = point_distance(first_landmarks[4], second_landmarks[4])
+    average_hand_scale = (get_hand_scale(first_hand) + get_hand_scale(second_hand)) / 2
+    close_threshold = min(0.16, max(0.055, average_hand_scale * 1.35))
+    _, index_mid_y = midpoint(first_landmarks[8], second_landmarks[8])
+    _, thumb_mid_y = midpoint(first_landmarks[4], second_landmarks[4])
+    heart_height = thumb_mid_y - index_mid_y
+    wrists_apart = abs(first_landmarks[0].x - second_landmarks[0].x) > 0.05
+
+    return (
+        wrists_apart
+        and index_tip_distance < close_threshold
+        and thumb_tip_distance < close_threshold
+        and heart_height > close_threshold * 0.25
+    )
+
+
+def is_two_hand_love_sign(hand_landmarks_list):
+    """Detect a two-hand heart: index tips close and thumb tips close."""
+    if len(hand_landmarks_list) < 2:
+        return False
+
+    for first_index in range(len(hand_landmarks_list) - 1):
+        for second_index in range(first_index + 1, len(hand_landmarks_list)):
+            if is_two_hand_love_pair(
+                hand_landmarks_list[first_index],
+                hand_landmarks_list[second_index],
+            ):
+                return True
+
+    return False
 
 
 def make_odd(value):
@@ -305,10 +333,7 @@ def main():
                         is_peace_sign(hand_landmarks)
                         for hand_landmarks in results.hand_landmarks
                     )
-                    raw_love_detected = any(
-                        is_love_sign(hand_landmarks)
-                        for hand_landmarks in results.hand_landmarks
-                    )
+                    raw_love_detected = is_two_hand_love_sign(results.hand_landmarks)
 
                 if raw_pose_detected:
                     pose_frame_count += 1
