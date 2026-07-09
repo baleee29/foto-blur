@@ -2,6 +2,8 @@
 
 FotoBlur adalah efek webcam real-time seperti tren TikTok: kamera tampil normal, lalu perlahan menjadi blur ketika pose tangan angka 2 / peace sign terdeteksi. Saat pose hilang, blur akan kembali normal secara perlahan.
 
+Jika love sign terdeteksi, foto `Lovesign.jpeg` akan muncul sebagai overlay di tampilan kamera.
+
 Project ini punya dua versi:
 
 - Website statis untuk deploy ke Vercel.
@@ -14,6 +16,7 @@ File utama website:
 - `index.html`
 - `styles.css`
 - `script.js`
+- `assets/Lovesign.jpeg`
 - `hand_landmarker.task`
 - `vercel.json`
 - `.vercelignore`

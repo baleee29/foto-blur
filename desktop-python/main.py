@@ -9,13 +9,19 @@ MAX_BLUR = 45
 BLUR_STEP_UP = 3
 BLUR_STEP_DOWN = 2
 STABLE_POSE_FRAMES = 3
+STABLE_LOVE_FRAMES = 3
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 MODEL_PATH = Path(__file__).resolve().parent.parent / "hand_landmarker.task"
+LOVE_IMAGE_PATH = Path(__file__).with_name("Lovesign.jpeg")
+
+
+def get_landmarks(hand_landmarks):
+    return hand_landmarks.landmark if hasattr(hand_landmarks, "landmark") else hand_landmarks
 
 
 def is_finger_up(hand_landmarks, tip_id, pip_id):
     """Return True when a fingertip is above its PIP joint."""
-    landmarks = hand_landmarks.landmark if hasattr(hand_landmarks, "landmark") else hand_landmarks
+    landmarks = get_landmarks(hand_landmarks)
     tip = landmarks[tip_id]
     pip = landmarks[pip_id]
     return tip.y < pip.y
@@ -29,6 +35,29 @@ def is_peace_sign(hand_landmarks):
     pinky_up = is_finger_up(hand_landmarks, 20, 18)
 
     return index_up and middle_up and not ring_up and not pinky_up
+
+
+def landmark_distance(hand_landmarks, first_id, second_id):
+    landmarks = get_landmarks(hand_landmarks)
+    first = landmarks[first_id]
+    second = landmarks[second_id]
+    delta_x = first.x - second.x
+    delta_y = first.y - second.y
+    return (delta_x ** 2 + delta_y ** 2) ** 0.5
+
+
+def is_love_sign(hand_landmarks):
+    """Detect finger heart or ILY-style love sign."""
+    index_up = is_finger_up(hand_landmarks, 8, 6)
+    middle_up = is_finger_up(hand_landmarks, 12, 10)
+    ring_up = is_finger_up(hand_landmarks, 16, 14)
+    pinky_up = is_finger_up(hand_landmarks, 20, 18)
+    thumb_index_close = landmark_distance(hand_landmarks, 4, 8) < 0.085
+
+    finger_heart = thumb_index_close and not middle_up and not ring_up and not pinky_up
+    ily_sign = index_up and pinky_up and not middle_up and not ring_up
+
+    return finger_heart or ily_sign
 
 
 def make_odd(value):
@@ -49,6 +78,36 @@ def apply_smooth_blur(frame, blur_strength):
         return frame
 
     return cv2.GaussianBlur(frame, (kernel, kernel), 0)
+
+
+def overlay_image(frame, image, margin=20):
+    """Place an image overlay at the bottom-right corner."""
+    if image is None:
+        return frame
+
+    frame_height, frame_width = frame.shape[:2]
+    image_height, image_width = image.shape[:2]
+    max_width = int(frame_width * 0.28)
+    max_height = int(frame_height * 0.46)
+    scale = min(max_width / image_width, max_height / image_height)
+    overlay_width = max(1, int(image_width * scale))
+    overlay_height = max(1, int(image_height * scale))
+
+    resized = cv2.resize(image, (overlay_width, overlay_height), interpolation=cv2.INTER_AREA)
+    x1 = frame_width - overlay_width - margin
+    y1 = frame_height - overlay_height - margin
+    x2 = x1 + overlay_width
+    y2 = y1 + overlay_height
+
+    cv2.rectangle(
+        frame,
+        (x1 - 3, y1 - 3),
+        (x2 + 3, y2 + 3),
+        (255, 255, 255),
+        2,
+    )
+    frame[y1:y2, x1:x2] = resized
+    return frame
 
 
 def download_model_if_needed():
@@ -120,7 +179,11 @@ def main():
 
     blur_strength = 0
     pose_frame_count = 0
+    love_frame_count = 0
     frame_index = 0
+    love_image = cv2.imread(str(LOVE_IMAGE_PATH))
+    if love_image is None:
+        print(f"Warning: Foto love sign tidak ditemukan di {LOVE_IMAGE_PATH}")
 
     try:
         options = vision.HandLandmarkerOptions(
@@ -150,9 +213,14 @@ def main():
                 results = hand_landmarker.detect_for_video(mp_image, frame_index * 33)
 
                 raw_pose_detected = False
+                raw_love_detected = False
                 if results.hand_landmarks:
                     raw_pose_detected = any(
                         is_peace_sign(hand_landmarks)
+                        for hand_landmarks in results.hand_landmarks
+                    )
+                    raw_love_detected = any(
+                        is_love_sign(hand_landmarks)
                         for hand_landmarks in results.hand_landmarks
                     )
 
@@ -161,7 +229,13 @@ def main():
                 else:
                     pose_frame_count = 0
 
+                if raw_love_detected:
+                    love_frame_count += 1
+                else:
+                    love_frame_count = 0
+
                 pose_detected = pose_frame_count >= STABLE_POSE_FRAMES
+                love_detected = love_frame_count >= STABLE_LOVE_FRAMES
 
                 if pose_detected:
                     blur_strength = min(MAX_BLUR, blur_strength + BLUR_STEP_UP)
@@ -180,6 +254,9 @@ def main():
                             drawing_styles.get_default_hand_landmarks_style(),
                             drawing_styles.get_default_hand_connections_style(),
                         )
+
+                if love_detected:
+                    display_frame = overlay_image(display_frame, love_image)
 
                 draw_status_text(display_frame, pose_detected)
                 cv2.imshow("TikTok Webcam Blur Effect", display_frame)

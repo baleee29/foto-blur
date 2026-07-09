@@ -4,10 +4,12 @@ const MEDIAPIPE_BASE_URLS = [
 ];
 
 const MODEL_PATH = "./hand_landmarker.task";
+const LOVE_IMAGE_PATH = "./assets/Lovesign.jpeg";
 const MAX_BLUR = 45;
 const BLUR_STEP_UP = 3;
 const BLUR_STEP_DOWN = 2;
 const STABLE_POSE_FRAMES = 3;
+const STABLE_LOVE_FRAMES = 3;
 
 const HAND_CONNECTIONS = [
   [0, 1],
@@ -36,6 +38,7 @@ const HAND_CONNECTIONS = [
 const elements = {
   video: document.querySelector("#inputVideo"),
   canvas: document.querySelector("#outputCanvas"),
+  loveSignImage: document.querySelector("#loveSignImage"),
   emptyState: document.querySelector("#emptyState"),
   startCameraButton: document.querySelector("#startCameraButton"),
   toggleCameraButton: document.querySelector("#toggleCameraButton"),
@@ -72,9 +75,12 @@ const state = {
   mirror: true,
   blurStrength: 0,
   poseFrameCount: 0,
+  loveFrameCount: 0,
   lastResults: null,
   useNativeCanvasBlur: "filter" in ctx && !shouldUseMobileBlurFallback(),
 };
+
+elements.loveSignImage.src = LOVE_IMAGE_PATH;
 
 function setStatus(text, tone = "idle") {
   elements.appStatus.textContent = text;
@@ -100,6 +106,25 @@ function isPeaceSign(handLandmarks) {
   return indexUp && middleUp && !ringUp && !pinkyUp;
 }
 
+function landmarkDistance(firstLandmark, secondLandmark) {
+  const deltaX = firstLandmark.x - secondLandmark.x;
+  const deltaY = firstLandmark.y - secondLandmark.y;
+  return Math.hypot(deltaX, deltaY);
+}
+
+function isLoveSign(handLandmarks) {
+  const indexUp = isFingerUp(handLandmarks, 8, 6);
+  const middleUp = isFingerUp(handLandmarks, 12, 10);
+  const ringUp = isFingerUp(handLandmarks, 16, 14);
+  const pinkyUp = isFingerUp(handLandmarks, 20, 18);
+  const thumbIndexClose = landmarkDistance(handLandmarks[4], handLandmarks[8]) < 0.085;
+
+  const fingerHeart = thumbIndexClose && !middleUp && !ringUp && !pinkyUp;
+  const ilySign = indexUp && pinkyUp && !middleUp && !ringUp;
+
+  return fingerHeart || ilySign;
+}
+
 function updatePoseState(handLandmarks) {
   const rawPoseDetected = handLandmarks.some(isPeaceSign);
 
@@ -118,6 +143,21 @@ function updatePoseState(handLandmarks) {
   }
 
   return poseDetected;
+}
+
+function updateLoveState(handLandmarks) {
+  const rawLoveDetected = handLandmarks.some(isLoveSign);
+
+  if (rawLoveDetected) {
+    state.loveFrameCount += 1;
+  } else {
+    state.loveFrameCount = 0;
+  }
+
+  const loveDetected = state.loveFrameCount >= STABLE_LOVE_FRAMES;
+  elements.loveSignImage.classList.toggle("is-visible", loveDetected);
+
+  return loveDetected;
 }
 
 function resizeCanvasToVideo() {
@@ -231,10 +271,10 @@ function drawVideoFrame(handLandmarks) {
   drawLandmarks(handLandmarks);
 }
 
-function updateDisplay(handLandmarks) {
+function updateDisplay(handLandmarks, loveDetected) {
   elements.handCount.textContent = String(handLandmarks.length);
   elements.poseFrames.textContent = String(Math.min(state.poseFrameCount, STABLE_POSE_FRAMES));
-  elements.effectState.textContent = state.blurStrength > 0 ? "Blur" : "Normal";
+  elements.effectState.textContent = loveDetected ? "Love" : state.blurStrength > 0 ? "Blur" : "Normal";
 }
 
 async function loadMediaPipe() {
@@ -316,8 +356,9 @@ function renderLoop() {
   }
 
   updatePoseState(handLandmarks);
+  const loveDetected = updateLoveState(handLandmarks);
   drawVideoFrame(handLandmarks);
-  updateDisplay(handLandmarks);
+  updateDisplay(handLandmarks, loveDetected);
 
   state.rafId = window.requestAnimationFrame(renderLoop);
 }
@@ -366,12 +407,14 @@ function stopCamera() {
 
   state.blurStrength = 0;
   state.poseFrameCount = 0;
+  state.loveFrameCount = 0;
   ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
   elements.video.srcObject = null;
+  elements.loveSignImage.classList.remove("is-visible");
   elements.emptyState.classList.remove("is-hidden");
   elements.startCameraButton.disabled = false;
   elements.toggleCameraButton.disabled = true;
-  updateDisplay([]);
+  updateDisplay([], false);
   setStatus("Ready");
 }
 
