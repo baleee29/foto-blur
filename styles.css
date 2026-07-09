@@ -1,16 +1,17 @@
 :root {
-  color-scheme: dark;
-  --bg: #10100f;
-  --surface: #191917;
-  --surface-strong: #23231f;
-  --line: #34342d;
-  --text: #f6f3e9;
-  --muted: #b8b2a4;
-  --green: #41d98a;
-  --amber: #f3ba4d;
-  --coral: #ef6b57;
-  --cyan: #5ab8c8;
-  --shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+  color-scheme: light;
+  --ink: #111111;
+  --paper: #fff8dc;
+  --panel: #ffffff;
+  --yellow: #ffd84d;
+  --pink: #ff5c9a;
+  --blue: #56c7ff;
+  --green: #40e070;
+  --orange: #ff9f1c;
+  --muted: #514a3f;
+  --shadow: 8px 8px 0 var(--ink);
+  --shadow-small: 5px 5px 0 var(--ink);
+  --border: 3px solid var(--ink);
 }
 
 * {
@@ -25,13 +26,14 @@ body {
 body {
   margin: 0;
   background:
-    linear-gradient(135deg, rgba(239, 107, 87, 0.12), transparent 36%),
-    linear-gradient(225deg, rgba(90, 184, 200, 0.12), transparent 36%),
-    var(--bg);
-  color: var(--text);
+    linear-gradient(90deg, rgba(17, 17, 17, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(17, 17, 17, 0.08) 1px, transparent 1px),
+    linear-gradient(135deg, #fff8dc 0%, #fff8dc 46%, #b8ffca 46%, #b8ffca 100%);
+  background-size: 22px 22px, 22px 22px, 100% 100%;
+  color: var(--ink);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    "Arial Black", Impact, Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button {
@@ -41,7 +43,7 @@ button {
 .app-shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 22px 0 28px;
+  padding: 22px 0 30px;
 }
 
 .topbar {
@@ -49,7 +51,12 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+  padding: 14px;
+  border: var(--border);
+  border-radius: 8px;
+  background: var(--yellow);
+  box-shadow: var(--shadow);
 }
 
 .brand {
@@ -60,54 +67,70 @@ button {
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   flex: 0 0 auto;
-  border: 2px solid var(--green);
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 8px rgba(65, 217, 138, 0.12);
+  border: var(--border);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, transparent 0 46%, var(--ink) 46% 54%, transparent 54%),
+    var(--pink);
+  box-shadow: var(--shadow-small);
   position: relative;
 }
 
 .brand-mark::after {
   content: "";
   position: absolute;
-  inset: 12px;
+  width: 18px;
+  height: 18px;
+  right: 5px;
+  bottom: 5px;
+  border: var(--border);
   border-radius: 50%;
-  background: var(--amber);
+  background: var(--blue);
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 24px;
-  line-height: 1.05;
+  font-size: clamp(26px, 4vw, 42px);
+  line-height: 0.95;
   letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .brand p {
-  margin: 3px 0 0;
-  color: var(--muted);
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .status-chip {
-  min-height: 38px;
+  min-height: 42px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(25, 25, 23, 0.82);
-  color: var(--text);
+  gap: 9px;
+  padding: 0 14px;
+  border: var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow-small);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
   white-space: nowrap;
 }
 
 .status-dot {
-  width: 9px;
-  height: 9px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink);
   border-radius: 999px;
-  background: var(--amber);
+  background: var(--orange);
 }
 
 .status-dot.is-live {
@@ -115,12 +138,12 @@ button {
 }
 
 .status-dot.is-error {
-  background: var(--coral);
+  background: var(--pink);
 }
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) 270px;
   gap: 18px;
   align-items: start;
 }
@@ -134,10 +157,19 @@ button {
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  border: 1px solid var(--line);
+  border: 4px solid var(--ink);
   border-radius: 8px;
   background: #050505;
-  box-shadow: var(--shadow);
+  box-shadow: 12px 12px 0 var(--ink);
+}
+
+.camera-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 8px solid rgba(255, 216, 77, 0.92);
+  pointer-events: none;
+  z-index: 3;
 }
 
 .input-video {
@@ -171,7 +203,7 @@ button {
   background-image: url("assets/Lovesign.jpeg");
   background-position: center;
   background-size: cover;
-  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
+  filter: drop-shadow(5px 7px 0 rgba(17, 17, 17, 0.82));
   opacity: 0;
   transform: translateX(0) rotate(var(--start-rotation)) scale(0.82);
   animation: love-rain-fall var(--duration) linear forwards;
@@ -191,11 +223,11 @@ button {
   }
 
   12% {
-    opacity: 0.96;
+    opacity: 0.98;
   }
 
   82% {
-    opacity: 0.94;
+    opacity: 0.96;
   }
 
   100% {
@@ -213,8 +245,9 @@ button {
   align-content: center;
   gap: 18px;
   background:
-    radial-gradient(circle at center, rgba(65, 217, 138, 0.16), transparent 28%),
-    #0b0b0a;
+    linear-gradient(45deg, rgba(17, 17, 17, 0.08) 25%, transparent 25% 50%, rgba(17, 17, 17, 0.08) 50% 75%, transparent 75%),
+    var(--blue);
+  background-size: 32px 32px;
 }
 
 .empty-state.is-hidden {
@@ -222,10 +255,12 @@ button {
 }
 
 .lens-icon {
-  width: 82px;
-  height: 82px;
-  border: 2px solid rgba(246, 243, 233, 0.36);
-  border-radius: 50%;
+  width: 86px;
+  height: 86px;
+  border: var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow-small);
   position: relative;
 }
 
@@ -233,62 +268,75 @@ button {
 .lens-icon::after {
   content: "";
   position: absolute;
-  border-radius: 50%;
 }
 
 .lens-icon::before {
-  inset: 15px;
-  border: 10px solid rgba(90, 184, 200, 0.42);
+  inset: 17px;
+  border: 10px solid var(--ink);
+  border-radius: 50%;
+  background: var(--green);
 }
 
 .lens-icon::after {
-  width: 14px;
-  height: 14px;
-  top: 22px;
-  right: 20px;
-  background: var(--amber);
+  width: 16px;
+  height: 16px;
+  top: 15px;
+  right: 15px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--pink);
 }
 
 .empty-state h2 {
   margin: 0;
-  font-size: 30px;
+  padding: 6px 12px;
+  border: var(--border);
+  border-radius: 8px;
+  background: var(--yellow);
+  box-shadow: var(--shadow-small);
+  font-size: clamp(30px, 7vw, 58px);
+  line-height: 0.95;
   letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .primary-button,
 .tool-button {
-  min-height: 42px;
+  min-height: 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid transparent;
+  border: var(--border);
   border-radius: 8px;
   cursor: pointer;
+  box-shadow: var(--shadow-small);
   transition:
-    transform 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+    transform 130ms ease,
+    box-shadow 130ms ease,
+    background-color 130ms ease;
 }
 
 .primary-button {
-  padding: 0 16px;
-  background: var(--green);
-  color: #07150d;
-  font-weight: 800;
+  padding: 0 18px;
+  background: var(--pink);
+  color: var(--ink);
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .primary-button:hover,
 .tool-button:hover {
-  transform: translateY(-1px);
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0 var(--ink);
 }
 
 .primary-button:disabled,
 .tool-button:disabled {
   cursor: not-allowed;
-  opacity: 0.58;
+  opacity: 0.62;
   transform: none;
+  box-shadow: var(--shadow-small);
 }
 
 .primary-button svg,
@@ -296,56 +344,81 @@ button {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
+  stroke-width: 3;
 }
 
 .control-strip {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 18px;
+  padding: 12px;
+  border: var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
 }
 
 .tool-button {
-  padding: 0 13px;
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--line);
+  padding: 0 14px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .tool-button.is-active {
-  border-color: rgba(65, 217, 138, 0.58);
-  background: rgba(65, 217, 138, 0.12);
+  background: var(--green);
 }
 
 .side-panel {
   display: grid;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--line);
+  border: var(--border);
   border-radius: 8px;
-  background: rgba(25, 25, 23, 0.78);
+  background: var(--pink);
   box-shadow: var(--shadow);
 }
 
 .metric {
-  min-height: 68px;
+  min-height: 72px;
   display: grid;
   align-content: center;
   gap: 6px;
   padding: 12px;
+  border: var(--border);
   border-radius: 8px;
-  background: var(--surface-strong);
+  background: var(--panel);
+  box-shadow: var(--shadow-small);
+}
+
+.metric:nth-child(2) {
+  background: var(--blue);
+}
+
+.metric:nth-child(3) {
+  background: var(--yellow);
+}
+
+.metric:nth-child(4) {
+  background: var(--green);
 }
 
 .metric span {
-  color: var(--muted);
-  font-size: 12px;
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .metric strong {
-  color: var(--text);
-  font-size: 18px;
-  line-height: 1.1;
+  color: var(--ink);
+  font-size: clamp(18px, 2.4vw, 26px);
+  line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 860px) {
@@ -361,7 +434,7 @@ button {
 @media (max-width: 620px) {
   .app-shell {
     width: min(100% - 20px, 1180px);
-    padding-top: 14px;
+    padding-top: 12px;
   }
 
   .topbar {
@@ -369,8 +442,18 @@ button {
     flex-direction: column;
   }
 
+  .brand h1 {
+    font-size: clamp(26px, 12vw, 42px);
+  }
+
+  .status-chip {
+    width: 100%;
+    justify-content: center;
+  }
+
   .camera-frame {
     aspect-ratio: 4 / 5;
+    box-shadow: 7px 7px 0 var(--ink);
   }
 
   .control-strip,
@@ -381,5 +464,6 @@ button {
 
   .side-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    box-shadow: 7px 7px 0 var(--ink);
   }
 }
