@@ -9,7 +9,7 @@ const MAX_BLUR = 45;
 const BLUR_STEP_UP = 3;
 const BLUR_STEP_DOWN = 2;
 const STABLE_POSE_FRAMES = 3;
-const STABLE_LOVE_FRAMES = 3;
+const STABLE_LOVE_FRAMES = 8;
 const LOVE_RAIN_BATCH_SIZE = 5;
 const LOVE_RAIN_INTERVAL_MS = 120;
 const MAX_LOVE_PHOTOS = 90;
@@ -129,17 +129,22 @@ function isTwoHandLovePair(firstHand, secondHand) {
   const indexTipDistance = landmarkDistance(firstHand[8], secondHand[8]);
   const thumbTipDistance = landmarkDistance(firstHand[4], secondHand[4]);
   const averageHandScale = (getHandScale(firstHand) + getHandScale(secondHand)) / 2;
-  const closeThreshold = Math.min(0.16, Math.max(0.055, averageHandScale * 1.35));
+  const closeThreshold = Math.min(0.085, Math.max(0.035, averageHandScale * 0.55));
   const indexMidpoint = midpoint(firstHand[8], secondHand[8]);
   const thumbMidpoint = midpoint(firstHand[4], secondHand[4]);
   const heartHeight = thumbMidpoint.y - indexMidpoint.y;
-  const wristsApart = Math.abs(firstHand[0].x - secondHand[0].x) > 0.05;
+  const centerAligned = Math.abs(indexMidpoint.x - thumbMidpoint.x) < closeThreshold * 1.35;
+  const indexTipsAboveThumbs = firstHand[8].y < firstHand[4].y && secondHand[8].y < secondHand[4].y;
+  const wristDistance = Math.abs(firstHand[0].x - secondHand[0].x);
+  const wristsReasonablyApart = wristDistance > closeThreshold * 1.6 && wristDistance < 0.72;
 
   return (
-    wristsApart &&
+    wristsReasonablyApart &&
+    centerAligned &&
+    indexTipsAboveThumbs &&
     indexTipDistance < closeThreshold &&
     thumbTipDistance < closeThreshold &&
-    heartHeight > closeThreshold * 0.25
+    heartHeight > closeThreshold * 0.8
   );
 }
 
@@ -225,6 +230,7 @@ function spawnLovePhoto() {
 function updateLoveRain(loveDetected) {
   if (!loveDetected) {
     state.lastLoveRainAt = 0;
+    clearLoveRain();
     return;
   }
 

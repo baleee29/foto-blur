@@ -10,7 +10,7 @@ MAX_BLUR = 45
 BLUR_STEP_UP = 3
 BLUR_STEP_DOWN = 2
 STABLE_POSE_FRAMES = 3
-STABLE_LOVE_FRAMES = 3
+STABLE_LOVE_FRAMES = 8
 LOVE_RAIN_BATCH_SIZE = 4
 LOVE_RAIN_INTERVAL_FRAMES = 4
 MAX_LOVE_PHOTOS = 70
@@ -62,17 +62,25 @@ def is_two_hand_love_pair(first_hand, second_hand):
     index_tip_distance = point_distance(first_landmarks[8], second_landmarks[8])
     thumb_tip_distance = point_distance(first_landmarks[4], second_landmarks[4])
     average_hand_scale = (get_hand_scale(first_hand) + get_hand_scale(second_hand)) / 2
-    close_threshold = min(0.16, max(0.055, average_hand_scale * 1.35))
-    _, index_mid_y = midpoint(first_landmarks[8], second_landmarks[8])
-    _, thumb_mid_y = midpoint(first_landmarks[4], second_landmarks[4])
+    close_threshold = min(0.085, max(0.035, average_hand_scale * 0.55))
+    index_mid_x, index_mid_y = midpoint(first_landmarks[8], second_landmarks[8])
+    thumb_mid_x, thumb_mid_y = midpoint(first_landmarks[4], second_landmarks[4])
     heart_height = thumb_mid_y - index_mid_y
-    wrists_apart = abs(first_landmarks[0].x - second_landmarks[0].x) > 0.05
+    center_aligned = abs(index_mid_x - thumb_mid_x) < close_threshold * 1.35
+    index_tips_above_thumbs = (
+        first_landmarks[8].y < first_landmarks[4].y
+        and second_landmarks[8].y < second_landmarks[4].y
+    )
+    wrist_distance = abs(first_landmarks[0].x - second_landmarks[0].x)
+    wrists_reasonably_apart = close_threshold * 1.6 < wrist_distance < 0.72
 
     return (
-        wrists_apart
+        wrists_reasonably_apart
+        and center_aligned
+        and index_tips_above_thumbs
         and index_tip_distance < close_threshold
         and thumb_tip_distance < close_threshold
-        and heart_height > close_threshold * 0.25
+        and heart_height > close_threshold * 0.8
     )
 
 
@@ -358,6 +366,8 @@ def main():
 
                 if love_detected and frame_index % LOVE_RAIN_INTERVAL_FRAMES == 0:
                     spawn_love_photos(love_particles, love_image, frame_width, frame_height)
+                elif not love_detected:
+                    love_particles.clear()
 
                 # Draw landmarks after blur so the hand guide remains visible.
                 if results.hand_landmarks:
