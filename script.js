@@ -43,8 +43,6 @@ const elements = {
   toggleMirrorButton: document.querySelector("#toggleMirrorButton"),
   statusDot: document.querySelector("#statusDot"),
   appStatus: document.querySelector("#appStatus"),
-  poseStatus: document.querySelector("#poseStatus"),
-  blurLevel: document.querySelector("#blurLevel"),
   modelState: document.querySelector("#modelState"),
   handCount: document.querySelector("#handCount"),
   poseFrames: document.querySelector("#poseFrames"),
@@ -233,12 +231,7 @@ function drawVideoFrame(handLandmarks) {
   drawLandmarks(handLandmarks);
 }
 
-function updateDisplay(poseDetected, handLandmarks) {
-  const blurPercent = Math.round((state.blurStrength / MAX_BLUR) * 100);
-
-  elements.poseStatus.textContent = poseDetected ? "POSE 2 DETECTED - BLUR ON" : "NORMAL";
-  elements.poseStatus.classList.toggle("is-detected", poseDetected);
-  elements.blurLevel.textContent = `Blur ${blurPercent}%`;
+function updateDisplay(handLandmarks) {
   elements.handCount.textContent = String(handLandmarks.length);
   elements.poseFrames.textContent = String(Math.min(state.poseFrameCount, STABLE_POSE_FRAMES));
   elements.effectState.textContent = state.blurStrength > 0 ? "Blur" : "Normal";
@@ -322,9 +315,9 @@ function renderLoop() {
     state.lastResults = results;
   }
 
-  const poseDetected = updatePoseState(handLandmarks);
+  updatePoseState(handLandmarks);
   drawVideoFrame(handLandmarks);
-  updateDisplay(poseDetected, handLandmarks);
+  updateDisplay(handLandmarks);
 
   state.rafId = window.requestAnimationFrame(renderLoop);
 }
@@ -378,7 +371,7 @@ function stopCamera() {
   elements.emptyState.classList.remove("is-hidden");
   elements.startCameraButton.disabled = false;
   elements.toggleCameraButton.disabled = true;
-  updateDisplay(false, []);
+  updateDisplay([]);
   setStatus("Ready");
 }
 

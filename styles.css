@@ -247,32 +247,6 @@ button {
   flex: 0 0 auto;
 }
 
-.camera-overlay {
-  position: absolute;
-  inset: 14px 14px auto;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.pose-status,
-.blur-level {
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 10px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.pose-status.is-detected {
-  color: var(--green);
-}
-
 .control-strip {
   display: flex;
   gap: 10px;
@@ -346,11 +320,6 @@ button {
 
   .camera-frame {
     aspect-ratio: 4 / 5;
-  }
-
-  .camera-overlay {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .control-strip,
