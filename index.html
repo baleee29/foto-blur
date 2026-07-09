@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="FotoBlur adalah efek webcam real-time yang mengaktifkan blur saat pose peace sign terdeteksi."
+    />
+    <title>FotoBlur</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script type="module" src="script.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>FotoBlur</h1>
+            <p>Real-time webcam effect</p>
+          </div>
+        </div>
+
+        <div class="status-chip" aria-live="polite">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="appStatus">Ready</span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="camera-panel" aria-label="FotoBlur webcam preview">
+          <div id="cameraFrame" class="camera-frame">
+            <video id="inputVideo" class="input-video" autoplay muted playsinline></video>
+            <canvas id="outputCanvas" class="output-canvas"></canvas>
+
+            <div id="emptyState" class="empty-state">
+              <span class="lens-icon" aria-hidden="true"></span>
+              <h2>FotoBlur</h2>
+              <button id="startCameraButton" class="primary-button" type="button">
+                <i data-lucide="camera"></i>
+                <span>Start Camera</span>
+              </button>
+            </div>
+
+            <div class="camera-overlay">
+              <span id="poseStatus" class="pose-status">NORMAL</span>
+              <span id="blurLevel" class="blur-level">Blur 0%</span>
+            </div>
+          </div>
+
+          <div class="control-strip">
+            <button id="toggleCameraButton" class="tool-button" type="button" disabled>
+              <i data-lucide="power"></i>
+              <span>Stop</span>
+            </button>
+
+            <button id="toggleLandmarksButton" class="tool-button is-active" type="button">
+              <i data-lucide="scan-face"></i>
+              <span>Landmarks</span>
+            </button>
+
+            <button id="toggleMirrorButton" class="tool-button is-active" type="button">
+              <i data-lucide="flip-horizontal-2"></i>
+              <span>Mirror</span>
+            </button>
+          </div>
+        </section>
+
+        <aside class="side-panel" aria-label="Session details">
+          <div class="metric">
+            <span>Model</span>
+            <strong id="modelState">Idle</strong>
+          </div>
+          <div class="metric">
+            <span>Hands</span>
+            <strong id="handCount">0</strong>
+          </div>
+          <div class="metric">
+            <span>Pose Frames</span>
+            <strong id="poseFrames">0</strong>
+          </div>
+          <div class="metric">
+            <span>Effect</span>
+            <strong id="effectState">Normal</strong>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </body>
+</html>
