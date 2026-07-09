@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+import random
 import urllib.request
 from pathlib import Path
 
@@ -10,6 +11,9 @@ BLUR_STEP_UP = 3
 BLUR_STEP_DOWN = 2
 STABLE_POSE_FRAMES = 3
 STABLE_LOVE_FRAMES = 3
+LOVE_RAIN_BATCH_SIZE = 4
+LOVE_RAIN_INTERVAL_FRAMES = 4
+MAX_LOVE_PHOTOS = 70
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 MODEL_PATH = Path(__file__).resolve().parent.parent / "hand_landmarker.task"
 LOVE_IMAGE_PATH = Path(__file__).with_name("Lovesign.jpeg")
@@ -80,34 +84,115 @@ def apply_smooth_blur(frame, blur_strength):
     return cv2.GaussianBlur(frame, (kernel, kernel), 0)
 
 
-def overlay_image(frame, image, margin=20):
-    """Place an image overlay at the bottom-right corner."""
+def create_heart_mask(size):
+    """Create a heart-shaped alpha mask."""
+    t = np.linspace(0, 2 * np.pi, 220)
+    x = 16 * np.sin(t) ** 3
+    y = 13 * np.cos(t) - 5 * np.cos(2 * t) - 2 * np.cos(3 * t) - np.cos(4 * t)
+
+    points = np.column_stack(
+        (
+            ((x + 17) / 34 * (size - 1)).astype(np.int32),
+            ((17 - y) / 34 * (size - 1)).astype(np.int32),
+        )
+    )
+
+    mask = np.zeros((size, size), dtype=np.uint8)
+    cv2.fillPoly(mask, [points], 255)
+    return cv2.GaussianBlur(mask, (5, 5), 0)
+
+
+def create_heart_photo(image, size):
+    """Resize the source photo into a heart-shaped RGBA image."""
     if image is None:
-        return frame
+        return None
+
+    image_height, image_width = image.shape[:2]
+    scale = max(size / image_width, size / image_height)
+    resized_width = int(image_width * scale)
+    resized_height = int(image_height * scale)
+    resized = cv2.resize(image, (resized_width, resized_height), interpolation=cv2.INTER_AREA)
+
+    x1 = max(0, (resized_width - size) // 2)
+    y1 = max(0, (resized_height - size) // 2)
+    square = resized[y1 : y1 + size, x1 : x1 + size]
+
+    if square.shape[0] != size or square.shape[1] != size:
+        square = cv2.resize(square, (size, size), interpolation=cv2.INTER_AREA)
+
+    alpha = create_heart_mask(size)
+    return np.dstack((square, alpha))
+
+
+def overlay_rgba(frame, image_rgba, x, y):
+    """Alpha-blend an RGBA image onto a BGR frame."""
+    if image_rgba is None:
+        return
 
     frame_height, frame_width = frame.shape[:2]
-    image_height, image_width = image.shape[:2]
-    max_width = int(frame_width * 0.28)
-    max_height = int(frame_height * 0.46)
-    scale = min(max_width / image_width, max_height / image_height)
-    overlay_width = max(1, int(image_width * scale))
-    overlay_height = max(1, int(image_height * scale))
+    image_height, image_width = image_rgba.shape[:2]
 
-    resized = cv2.resize(image, (overlay_width, overlay_height), interpolation=cv2.INTER_AREA)
-    x1 = frame_width - overlay_width - margin
-    y1 = frame_height - overlay_height - margin
-    x2 = x1 + overlay_width
-    y2 = y1 + overlay_height
+    x1 = max(0, int(x))
+    y1 = max(0, int(y))
+    x2 = min(frame_width, int(x) + image_width)
+    y2 = min(frame_height, int(y) + image_height)
 
-    cv2.rectangle(
-        frame,
-        (x1 - 3, y1 - 3),
-        (x2 + 3, y2 + 3),
-        (255, 255, 255),
-        2,
-    )
-    frame[y1:y2, x1:x2] = resized
-    return frame
+    if x1 >= x2 or y1 >= y2:
+        return
+
+    image_x1 = x1 - int(x)
+    image_y1 = y1 - int(y)
+    image_x2 = image_x1 + (x2 - x1)
+    image_y2 = image_y1 + (y2 - y1)
+
+    overlay = image_rgba[image_y1:image_y2, image_x1:image_x2]
+    alpha = overlay[:, :, 3:4].astype(np.float32) / 255.0
+    frame_region = frame[y1:y2, x1:x2].astype(np.float32)
+    blended = overlay[:, :, :3].astype(np.float32) * alpha + frame_region * (1 - alpha)
+    frame[y1:y2, x1:x2] = blended.astype(np.uint8)
+
+
+def spawn_love_photos(particles, love_image, frame_width, frame_height):
+    """Create several falling heart-photo particles."""
+    if love_image is None:
+        return
+
+    for _ in range(LOVE_RAIN_BATCH_SIZE):
+        size = random.randint(
+            max(32, int(frame_width * 0.045)),
+            max(54, int(frame_width * 0.105)),
+        )
+        start_y_min = -max(size, int(frame_height * 0.25))
+        start_y_max = -size
+        particles.append(
+            {
+                "x": random.uniform(-size, frame_width),
+                "y": random.uniform(start_y_min, start_y_max),
+                "speed": random.uniform(frame_height * 0.008, frame_height * 0.018),
+                "drift": random.uniform(-frame_width * 0.003, frame_width * 0.003),
+                "image": create_heart_photo(love_image, size),
+            }
+        )
+
+    if len(particles) > MAX_LOVE_PHOTOS:
+        del particles[: len(particles) - MAX_LOVE_PHOTOS]
+
+
+def draw_love_rain(frame, particles):
+    """Move and draw active falling heart photos."""
+    frame_height = frame.shape[0]
+    active_particles = []
+
+    for particle in particles:
+        particle["x"] += particle["drift"]
+        particle["y"] += particle["speed"]
+        overlay_rgba(frame, particle["image"], particle["x"], particle["y"])
+
+        image_height = particle["image"].shape[0] if particle["image"] is not None else 0
+        if particle["y"] < frame_height + image_height:
+            active_particles.append(particle)
+
+    particles[:] = active_particles
 
 
 def download_model_if_needed():
@@ -181,6 +266,7 @@ def main():
     pose_frame_count = 0
     love_frame_count = 0
     frame_index = 0
+    love_particles = []
     love_image = cv2.imread(str(LOVE_IMAGE_PATH))
     if love_image is None:
         print(f"Warning: Foto love sign tidak ditemukan di {LOVE_IMAGE_PATH}")
@@ -243,6 +329,10 @@ def main():
                     blur_strength = max(0, blur_strength - BLUR_STEP_DOWN)
 
                 display_frame = apply_smooth_blur(frame, blur_strength)
+                frame_height, frame_width = display_frame.shape[:2]
+
+                if love_detected and frame_index % LOVE_RAIN_INTERVAL_FRAMES == 0:
+                    spawn_love_photos(love_particles, love_image, frame_width, frame_height)
 
                 # Draw landmarks after blur so the hand guide remains visible.
                 if results.hand_landmarks:
@@ -255,8 +345,7 @@ def main():
                             drawing_styles.get_default_hand_connections_style(),
                         )
 
-                if love_detected:
-                    display_frame = overlay_image(display_frame, love_image)
+                draw_love_rain(display_frame, love_particles)
 
                 draw_status_text(display_frame, pose_detected)
                 cv2.imshow("TikTok Webcam Blur Effect", display_frame)

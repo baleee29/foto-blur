@@ -10,6 +10,9 @@ const BLUR_STEP_UP = 3;
 const BLUR_STEP_DOWN = 2;
 const STABLE_POSE_FRAMES = 3;
 const STABLE_LOVE_FRAMES = 3;
+const LOVE_RAIN_BATCH_SIZE = 5;
+const LOVE_RAIN_INTERVAL_MS = 120;
+const MAX_LOVE_PHOTOS = 90;
 
 const HAND_CONNECTIONS = [
   [0, 1],
@@ -38,7 +41,7 @@ const HAND_CONNECTIONS = [
 const elements = {
   video: document.querySelector("#inputVideo"),
   canvas: document.querySelector("#outputCanvas"),
-  loveSignImage: document.querySelector("#loveSignImage"),
+  loveRain: document.querySelector("#loveRain"),
   emptyState: document.querySelector("#emptyState"),
   startCameraButton: document.querySelector("#startCameraButton"),
   toggleCameraButton: document.querySelector("#toggleCameraButton"),
@@ -76,11 +79,10 @@ const state = {
   blurStrength: 0,
   poseFrameCount: 0,
   loveFrameCount: 0,
+  lastLoveRainAt: 0,
   lastResults: null,
   useNativeCanvasBlur: "filter" in ctx && !shouldUseMobileBlurFallback(),
 };
-
-elements.loveSignImage.src = LOVE_IMAGE_PATH;
 
 function setStatus(text, tone = "idle") {
   elements.appStatus.textContent = text;
@@ -155,9 +157,58 @@ function updateLoveState(handLandmarks) {
   }
 
   const loveDetected = state.loveFrameCount >= STABLE_LOVE_FRAMES;
-  elements.loveSignImage.classList.toggle("is-visible", loveDetected);
 
   return loveDetected;
+}
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function spawnLovePhoto() {
+  const particle = document.createElement("span");
+  const size = randomBetween(44, 92);
+  const drift = randomBetween(-120, 120);
+  const startRotation = randomBetween(-28, 28);
+  const endRotation = startRotation + randomBetween(-130, 130);
+  const duration = randomBetween(2.8, 5.4);
+
+  particle.className = "love-photo";
+  particle.style.left = `${randomBetween(-4, 96)}%`;
+  particle.style.setProperty("--size", `${size}px`);
+  particle.style.setProperty("--drift", `${drift}px`);
+  particle.style.setProperty("--start-rotation", `${startRotation}deg`);
+  particle.style.setProperty("--end-rotation", `${endRotation}deg`);
+  particle.style.setProperty("--duration", `${duration}s`);
+  particle.style.backgroundImage = `url("${LOVE_IMAGE_PATH}")`;
+
+  particle.addEventListener("animationend", () => particle.remove(), { once: true });
+  elements.loveRain.appendChild(particle);
+
+  while (elements.loveRain.childElementCount > MAX_LOVE_PHOTOS) {
+    elements.loveRain.firstElementChild.remove();
+  }
+}
+
+function updateLoveRain(loveDetected) {
+  if (!loveDetected) {
+    state.lastLoveRainAt = 0;
+    return;
+  }
+
+  const now = performance.now();
+  if (now - state.lastLoveRainAt < LOVE_RAIN_INTERVAL_MS) {
+    return;
+  }
+
+  state.lastLoveRainAt = now;
+  for (let index = 0; index < LOVE_RAIN_BATCH_SIZE; index += 1) {
+    spawnLovePhoto();
+  }
+}
+
+function clearLoveRain() {
+  elements.loveRain.replaceChildren();
 }
 
 function resizeCanvasToVideo() {
@@ -357,6 +408,7 @@ function renderLoop() {
 
   updatePoseState(handLandmarks);
   const loveDetected = updateLoveState(handLandmarks);
+  updateLoveRain(loveDetected);
   drawVideoFrame(handLandmarks);
   updateDisplay(handLandmarks, loveDetected);
 
@@ -408,9 +460,10 @@ function stopCamera() {
   state.blurStrength = 0;
   state.poseFrameCount = 0;
   state.loveFrameCount = 0;
+  state.lastLoveRainAt = 0;
   ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
   elements.video.srcObject = null;
-  elements.loveSignImage.classList.remove("is-visible");
+  clearLoveRain();
   elements.emptyState.classList.remove("is-hidden");
   elements.startCameraButton.disabled = false;
   elements.toggleCameraButton.disabled = true;
