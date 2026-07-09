@@ -16,6 +16,7 @@ File utama website:
 - `script.js`
 - `hand_landmarker.task`
 - `vercel.json`
+- `.vercelignore`
 
 Jalankan lokal dengan server statis:
 
@@ -38,6 +39,8 @@ Browser membutuhkan HTTPS atau localhost agar akses kamera bisa berjalan. Saat s
 3. Import repository `foto-blur`.
 4. Gunakan pengaturan default untuk static site.
 5. Deploy.
+
+Catatan: file Python desktop disimpan di folder `desktop-python/` dan diabaikan oleh Vercel melalui `.vercelignore`, jadi Vercel hanya membaca website statis di root project.
 
 ## GitHub
 
@@ -66,13 +69,13 @@ Teknologi:
 Install dependency Python:
 
 ```bash
-pip install -r requirements.txt
+pip install -r desktop-python/requirements.txt
 ```
 
 Jalankan aplikasi Python:
 
 ```bash
-python main.py
+python desktop-python/main.py
 ```
 
 Saat pertama kali dijalankan, aplikasi akan memakai file model `hand_landmarker.task` di folder proyek. Jika file belum ada, aplikasi akan mencoba mengunduhnya otomatis.
