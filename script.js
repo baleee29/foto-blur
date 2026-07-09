@@ -52,6 +52,16 @@ const elements = {
 };
 
 const ctx = elements.canvas.getContext("2d");
+const blurCanvas = document.createElement("canvas");
+const blurCtx = blurCanvas.getContext("2d");
+
+function shouldUseMobileBlurFallback() {
+  const userAgent = navigator.userAgent || "";
+  const isPhoneOrTablet = /Android|iPhone|iPad|iPod/i.test(userAgent);
+  const isTouchIpadDesktopMode = /Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1;
+
+  return isPhoneOrTablet || isTouchIpadDesktopMode;
+}
 
 const state = {
   mediaPipeModule: null,
@@ -65,6 +75,7 @@ const state = {
   blurStrength: 0,
   poseFrameCount: 0,
   lastResults: null,
+  useNativeCanvasBlur: "filter" in ctx && !shouldUseMobileBlurFallback(),
 };
 
 function setStatus(text, tone = "idle") {
@@ -165,21 +176,59 @@ function drawLandmarks(handLandmarks) {
   ctx.restore();
 }
 
+function drawVideoSource(targetCtx, width, height) {
+  targetCtx.save();
+
+  if (state.mirror) {
+    targetCtx.translate(width, 0);
+    targetCtx.scale(-1, 1);
+  }
+
+  targetCtx.drawImage(elements.video, 0, 0, width, height);
+  targetCtx.restore();
+}
+
+function resizeBlurCanvas(width, height) {
+  if (blurCanvas.width !== width || blurCanvas.height !== height) {
+    blurCanvas.width = width;
+    blurCanvas.height = height;
+  }
+}
+
+function drawFallbackBlurredVideo(width, height) {
+  const blurRatio = state.blurStrength / MAX_BLUR;
+  const scale = Math.max(0.08, 1 - blurRatio * 0.92);
+  const scaledWidth = Math.max(24, Math.round(width * scale));
+  const scaledHeight = Math.max(24, Math.round(height * scale));
+
+  resizeBlurCanvas(scaledWidth, scaledHeight);
+
+  blurCtx.clearRect(0, 0, scaledWidth, scaledHeight);
+  blurCtx.imageSmoothingEnabled = true;
+  blurCtx.imageSmoothingQuality = "high";
+  drawVideoSource(blurCtx, scaledWidth, scaledHeight);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(blurCanvas, 0, 0, scaledWidth, scaledHeight, 0, 0, width, height);
+}
+
 function drawVideoFrame(handLandmarks) {
   resizeCanvasToVideo();
 
   const { width, height } = elements.canvas;
   ctx.clearRect(0, 0, width, height);
-  ctx.save();
-  ctx.filter = `blur(${state.blurStrength}px)`;
 
-  if (state.mirror) {
-    ctx.translate(width, 0);
-    ctx.scale(-1, 1);
+  if (state.blurStrength <= 0) {
+    drawVideoSource(ctx, width, height);
+  } else if (state.useNativeCanvasBlur) {
+    ctx.save();
+    ctx.filter = `blur(${state.blurStrength}px)`;
+    drawVideoSource(ctx, width, height);
+    ctx.restore();
+  } else {
+    drawFallbackBlurredVideo(width, height);
   }
-
-  ctx.drawImage(elements.video, 0, 0, width, height);
-  ctx.restore();
 
   drawLandmarks(handLandmarks);
 }

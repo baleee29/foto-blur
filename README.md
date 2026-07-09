@@ -32,6 +32,8 @@ http://127.0.0.1:5173
 
 Browser membutuhkan HTTPS atau localhost agar akses kamera bisa berjalan. Saat sudah di Vercel, URL deploy memakai HTTPS.
 
+Di handphone, efek blur memakai fallback canvas yang lebih kompatibel dengan browser mobile. Deteksi tangan tetap memakai MediaPipe Tasks.
+
 ## Deploy ke Vercel
 
 1. Push project ke repository GitHub bernama `foto-blur`.
